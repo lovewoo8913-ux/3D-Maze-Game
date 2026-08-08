@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D 미로 탈출 게임</title>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #000; }
+        #ui { position: absolute; top: 20px; left: 20px; color: white; font-family: sans-serif; pointer-events: none; z-index: 10; text-shadow: 1px 1px 2px #000; }
+        #instructions { position: absolute; bottom: 20px; left: 20px; color: #ccc; font-family: sans-serif; z-index: 10; text-shadow: 1px 1px 2px #000; }
+        #message { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: gold; font-size: 48px; font-weight: bold; display: none; z-index: 20; text-shadow: 2px 2px 6px #000; text-align: center; }
+    </style>
+</head>
+<body>
+
+<div id="ui">
+    <h1 id="level-title">3D 블록 미로 - 1단계</h1>
+    <p>화면을 클릭하여 게임을 시작하세요</p>
+</div>
+<div id="instructions">이동: W, A, S, D | 시점: 마우스 | 탈출: 황금 블록(G) 찾기</div>
+<div id="message">탈출 성공! 다음 단계로 이동합니다...</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/PointerLockControls.js"></script>
+
+<script>
+    let camera, scene, renderer, controls;
+    let moveForward = false, moveBackward = false, moveLeft = false, moveRight = false;
+    let velocity = new THREE.Vector3();
+    let prevTime = performance.now();
+    let walls = [];
+    let currentLevel = 1;
+    let goal;
+
+    // 더 크고 복잡하며 흥미진진한 3단계 미로 맵 구성 (미로 크기 확장 및 난이도 상승)
+    const maps = {
+        1: [
+            "WWWWWWWWWWWWWWWWWWWWWWWWWWWWWW",
+            "W            W               W",
+            "W WWWWWWWWWW W WWWWWWW WWWWW W",
+            "W W          W       W     W W",
+            "W W WWWWWWWW WWWWWWW W WWW W W",
+            "W W      W         W W   W W W",
+            "W WWWWWW W WWWWWWW W W W W W W",
+            "W      W W       W W W W W W W",
+            "WWWWWW W WWWWWWW W W W W W W W",
+            "W      W       W W W W W W W W",
+            "W WWWWWW WWWWW W W W W W W W W",
+            "W    W       W W W W W W W W W",
+            "WWWW W WWWWW W W W W W W W W W",
+            "W    W     W W W W W W W W W W",
+            "W WWWWWWWW W W W W W W W W W W",
+            "W          W W W W W W W W   W",
+            "WWWWWWWWWWWW W W W W W WWWWW W",
+            "W            W G W W       W W",
+            "WWWWWWWWWWWWWWWWWWWWWWWWWWWWWW"
+        ],
+        2: [
+            "WWWWWWWWWWWWWWWWWWWWWWWWWWWWWW",
+            "W   W       W        W       W",
+            "W W W WWW W W WWWWWW W WWWWW W",
+            "W W   W W W   W    W W W     W",
+            "W W W W W WWWWW WW W W W WWWWW",
+            "W W W W W     W W  W W W W   W",
+            "W W W W WWWWW W WW W W W W W W",
+            "W W W W     W W    W W W W W W",
+            "W W W WWWWWWWWWWWWWW W W W W W",
+            "W W                  W W W W W",
+            "W WWWWWWWWWWWWWWWWWW W W W W W",
+            "W                    W W W W W",
+            "WWWWWWWWWWWWWWWWWWWW W W W W W",
+            "W W                  W W W W W",
+            "W W WWWWWWWWWWWWWWWW W W W W W",
+            "W W                  W W W W W",
+            "W WWWWWWWWWWWWWWWWWW W W W W W",
+            "W G                  W       W",
+            "WWWWWWWWWWWWWWWWWWWWWWWWWWWWWW"
+        ],
+        3: [
+            "WWWWWWWWWWWWWWWWWWWWWWWWWWWWWW",
+            "W   W       W        W     W W",
+            "W W W WWWWW W WWWWWW W WWW W W",
+            "W W W W   W W W    W W W W W W",
+            "W W W W W W W W WW W W W W W W",
+            "W W W W W W W W  W W W W W W W",
+            "W W W W W W W WWWW W W W W W W",
+            "W W W W W W W      W W W W W W",
+            "W W W W W W WWWWWWWW W W W W W",
+            "W W W W W W          W W W W W",
+            "W W W W W WWWWWWWWWW W W W W W",
+            "W W W W W            W W W W W",
+            "W W W W WWWWWWWWWWWWWW W W W W",
+            "W W W W                W W W W",
+            "W W W WWWWWWWWWWWWWWWWWW W W W",
+            "W W                      W W W",
+            "W WWWWWWWWWWWWWWWWWWWWWWWW W W",
+            "W G                        W W",
+            "WWWWWWWWWWWWWWWWWWWWWWWWWWWWWW"
+        ]
+    };
+
+    function createTexture(color) {
+        const canvas = document.createElement('canvas');
+        canvas.width = 64; canvas.height = 64;
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = color;
+        ctx.fillRect(0, 0, 64, 64);
+        ctx.strokeStyle = '#222';
+        ctx.strokeRect(0, 0, 64, 64);
+        return new THREE.CanvasTexture(canvas);
+    }
+
+    function initLevel(level) {
+        if(scene) {
+            while(scene.children.length > 0) { scene.remove(scene.children[0]); }
+        } else {
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x111111);
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            document.body.appendChild(renderer.domElement);
+            
+            controls = new THREE.PointerLockControls(camera, document.body);
+            document.body.addEventListener('click', () => {
+                if (!controls.isLocked) {
+                    controls.lock();
+                }
+            });
+
+            window.addEventListener('resize', () => {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            });
+        }
+
+        walls = [];
+        const map = maps[level];
+        const wallMat = new THREE.MeshLambertMaterial({ map: createTexture('#4A3728') });
+        const goalMat = new THREE.MeshLambertMaterial({ color: 0xffd700, emissive: 0x554400 });
+
+        for (let z = 0; z < map.length; z++) {
+            for (let x = 0; x < map[z].length; x++) {
+                if (map[z][x] === 'W') {
+                    const wall = new THREE.Mesh(new THREE.BoxGeometry(10, 10, 10), wallMat);
+                    wall.position.set(x * 10 - 100, 5, z * 10 - 70);
+                    scene.add(wall);
+                    walls.push(wall);
+                } else if (map[z][x] === 'G') {
+                    goal = new THREE.Mesh(new THREE.BoxGeometry(10, 10, 10), goalMat);
+                    goal.position.set(x * 10 - 100, 5, z * 10 - 70);
+                    scene.add(goal);
+                }
+            }
+        }
+        
+        scene.add(new THREE.AmbientLight(0x222222));
+        
+        // 손전등 밝기와 확산 범위를 조금만 넓힌 원 모양 빔으로 설정
+        const flashlight = new THREE.SpotLight(0xffffff, 6.0, 90, Math.PI / 5.5, 0.35);
+        camera.add(flashlight);
+        camera.add(flashlight.target);
+        flashlight.target.position.set(0, 0, -1);
+        scene.add(camera);
+        
+        camera.position.set(20, 5, 20);
+        document.getElementById('level-title').innerText = `3D 블록 미로 - ${level}단계`;
+    }
+
+    function animate() {
+        requestAnimationFrame(animate);
+        
+        if (controls && controls.isLocked) {
+            const time = performance.now();
+            const delta = Math.min((time - prevTime) / 1000, 0.1);
+            
+            velocity.x -= velocity.x * 10.0 * delta;
+            velocity.z -= velocity.z * 10.0 * delta;
+            
+            const speed = 400.0;
+            if (moveForward) velocity.z -= speed * delta;
+            if (moveBackward) velocity.z += speed * delta;
+            if (moveLeft) velocity.x -= speed * delta;
+            if (moveRight) velocity.x += speed * delta;
+
+            // X축과 Z축을 개별적으로 이동 및 충돌 체크하여 부드러운 벽 슬라이딩 구현
+            const playerRadius = 3;
+
+            // 1. X축 이동 및 충돌 검사
+            controls.moveRight(velocity.x * delta);
+            camera.position.y = 5;
+            for (let i = 0; i < walls.length; i++) {
+                const wallPos = walls[i].position;
+                if (Math.abs(camera.position.x - wallPos.x) < 5 + playerRadius &&
+                    Math.abs(camera.position.z - wallPos.z) < 5 + playerRadius) {
+                    // X축 충돌 시 X축 이동만 되돌림
+                    controls.moveRight(-velocity.x * delta);
+                    velocity.x = 0;
+                    break;
+                }
+            }
+
+            // 2. Z축 이동 및 충돌 검사
+            controls.moveForward(-velocity.z * delta);
+            camera.position.y = 5;
+            for (let i = 0; i < walls.length; i++) {
+                const wallPos = walls[i].position;
+                if (Math.abs(camera.position.x - wallPos.x) < 5 + playerRadius &&
+                    Math.abs(camera.position.z - wallPos.z) < 5 + playerRadius) {
+                    // Z축 충돌 시 Z축 이동만 되돌림
+                    controls.moveForward(velocity.z * delta);
+                    velocity.z = 0;
+                    break;
+                }
+            }
+
+            // 목표 지점 도달 체크
+            if (goal && camera.position.distanceTo(goal.position) < 8) {
+                if (currentLevel < 3) {
+                    document.getElementById('message').style.display = 'block';
+                    controls.unlock();
+                    setTimeout(() => {
+                        currentLevel++;
+                        initLevel(currentLevel);
+                        document.getElementById('message').style.display = 'none';
+                    }, 2000);
+                } else {
+                    document.getElementById('message').innerText = "축하합니다! 모든 3단계를 클리어했습니다!";
+                    document.getElementById('message').style.display = 'block';
+                    controls.unlock();
+                }
+            }
+            
+            prevTime = time;
+        } else {
+            prevTime = performance.now();
+        }
+        
+        if (renderer && scene && camera) {
+            renderer.render(scene, camera);
+        }
+    }
+
+    window.addEventListener('keydown', (e) => {
+        switch(e.code) {
+            case 'KeyW': moveForward = true; break;
+            case 'KeyS': moveBackward = true; break;
+            case 'KeyA': moveLeft = true; break;
+            case 'KeyD': moveRight = true; break;
+        }
+    });
+
+    window.addEventListener('keyup', (e) => {
+        switch(e.code) {
+            case 'KeyW': moveForward = false; break;
+            case 'KeyS': moveBackward = false; break;
+            case 'KeyA': moveLeft = false; break;
+            case 'KeyD': moveRight = false; break;
+        }
+    });
+
+    window.onload = function() {
+        initLevel(1);
+        animate();
+    };
+</script>
+</body>
+</html>
