@@ -1,7 +1,7 @@
 [GitHub README.md](https://github.com/user-attachments/files/30849346/GitHub.README.md)
 <img width="1278" height="702" alt="캡처" src="https://github.com/user-attachments/assets/3461b615-3cd1-4fc3-ab9d-0ec5f9d2cd36" />
 
-img width="1197" height="785" alt="캡처2" src="https://github.com/user-attachments/assets/bad036b2-4ec3-4552-916e-40a4df640e77" />
+<img width="1197" height="785" alt="캡처2" src="https://github.com/user-attachments/assets/bad036b2-4ec3-4552-916e-40a4df640e77" />
 
 <img width="1099" height="620" alt="캡처3" src="https://github.com/user-attachments/assets/49e65eea-ade7-4401-b40d-bfc10fba0f91" />
 
