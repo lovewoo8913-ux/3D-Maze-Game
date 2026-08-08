@@ -6,7 +6,7 @@
 <img width="1101" height="510" alt="캡처4" src="https://github.com/user-attachments/assets/da4393ae-6d65-4bdb-9a45-5dc085879a8b" />
 
 <img width="1099" height="620" alt="캡처3" src="https://github.com/user-attachments/assets/49e65eea-ade7-4401-b40d-bfc10fba0f91" />
-# **3D 미로 탈출 게임 (3D Maze Escape Game) 🕹️**
+## **3D 미로 탈출 게임 (3D Maze Escape Game) 🕹️**
 
 **Three.js**와 **HTML5**로 완전히 제작된 1인칭 3D 미로 탈출 게임입니다. 어둡고 복잡한 미로 속에서 손전등을 활용해 길을 찾고, 황금 블록을 찾아 다음 단계로 나아가세요\!
 
